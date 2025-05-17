@@ -70,7 +70,8 @@ namespace {
 // tests at these types of time controls.
 
 constexpr int futility_move_count(bool improving, Depth depth) {
-    return (3 + depth * depth) / (2 - improving);
+    // fewer moves beyond which we give up quiet move exploration
+    return (2 + depth * depth) / (2 - improving);
 }
 
 int correction_value(const Worker& w, const Position& pos, const Stack* const ss) {
@@ -825,7 +826,8 @@ Value Search::Worker::search(
     // The depth condition is important for mate finding.
     {
         auto futility_margin = [&](Depth d) {
-            Value futilityMult       = 105 - 23 * (cutNode && !ss->ttHit);
+            // slightly smaller margin -> more pruning
+            Value futilityMult       = 100 - 20 * (cutNode && !ss->ttHit);
             Value improvingDeduction = improving * futilityMult * 2;
             Value worseningDeduction = opponentWorsening * futilityMult / 3;
 
@@ -836,7 +838,7 @@ Value Search::Worker::search(
                  + std::abs(correctionValue) / 149902;
         };
 
-        if (!ss->ttPv && depth < 14 && eval + (eval - beta) / 8 - futility_margin(depth) >= beta
+        if (!ss->ttPv && depth < 12 && eval + (eval - beta) / 8 - futility_margin(depth) >= beta
             && eval >= beta && (!ttData.move || ttCapture) && !is_loss(beta) && !is_win(eval))
             return beta + (eval - beta) / 3;
     }
@@ -887,7 +889,7 @@ Value Search::Worker::search(
     // Step 10. Internal iterative reductions
     // For PV nodes without a ttMove as well as for deep enough cutNodes, we decrease depth.
     // (*Scaler) Especially if they make IIR less aggressive.
-    if ((!allNode && depth >= (PvNode ? 5 : 7)) && !ttData.move)
+    if ((!allNode && depth >= (PvNode ? 4 : 6)) && !ttData.move)
         depth--;
 
     // Step 11. ProbCut
@@ -1223,7 +1225,7 @@ moves_loop:  // When in check, search starts here
         r -= ss->statScore * 826 / 8192;
 
         // Step 17. Late moves reduction / extension (LMR)
-        if (depth >= 2 && moveCount > 1)
+        if (depth >= 1 && moveCount > 1)
         {
             // In general we want to cap the LMR depth search at newDepth, but when
             // reduction is negative, we allow this move a limited search extension
