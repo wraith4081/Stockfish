@@ -1183,6 +1183,14 @@ moves_loop:  // When in check, search starts here
                 extension = -2;
         }
 
+        // if this move is a recapture of the very last move
+        // extend the extension
+        Square prevSquare = ((ss-1)->currentMove).is_ok()
+                  ? ((ss-1)->currentMove).to_sq()
+                  : SQ_NONE;
+        if (capture && move.to_sq() == prevSquare)
+            extension++;
+
         // Step 16. Make the move
         do_move(pos, move, st, givesCheck);
 
